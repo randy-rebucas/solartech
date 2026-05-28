@@ -86,7 +86,58 @@ Use `npm run db:seed:keep -w @solartech/api` to seed without dropping existing c
 
 ## Production Deployment
 
-### Docker Compose
+Preferred setup:
+- **Frontend (`apps/web`)**: Vercel
+- **Backend API (`apps/api`)**: Render (Web Service)
+
+### Option A (Recommended): Vercel + Render
+
+#### 1) Deploy the backend API to Render
+
+1. Create a **Web Service** from this repo.
+2. Configure:
+   - **Root Directory**: repo root (`.`)
+   - **Build Command**: `npm install && npm run build -w @solartech/api`
+   - **Start Command**: `npm run start:prod -w @solartech/api`
+3. Set required environment variables (from [`.env.example`](.env.example)), especially:
+   - `NODE_ENV=production`
+   - `PORT` (Render injects this automatically; app must listen on it)
+   - `JWT_ACCESS_SECRET`
+   - `JWT_REFRESH_SECRET`
+   - database/redis/mqtt credentials used by your production services
+   - any external keys (e.g., Stripe, OpenAI) used by enabled modules
+4. Deploy and verify health:
+   - `https://<your-render-service>/health`
+5. If you expose Swagger in production, verify:
+   - `https://<your-render-service>/api/docs`
+
+#### 2) Deploy the frontend to Vercel
+
+1. Import this repo in Vercel.
+2. Configure project:
+   - **Framework Preset**: Next.js
+   - **Root Directory**: `apps/web`
+3. Set frontend environment variables:
+   - `NEXT_PUBLIC_API_URL=https://<your-render-service>`
+   - any public keys required by the web app
+4. Deploy and open the Vercel domain.
+
+#### 3) Configure CORS and trusted origins
+
+Ensure the API allows requests from your Vercel production domain(s), for example:
+- `https://<your-app>.vercel.app`
+- your custom frontend domain (if configured)
+
+Also ensure callback/redirect URLs (OAuth, payment flows, etc.) match production domains.
+
+#### 4) Post-deploy checks
+
+- Frontend loads successfully from Vercel.
+- Login/register works end-to-end against Render API.
+- API `/health` returns `{"status":"ok",...}`.
+- Any webhooks (Stripe, etc.) point to your Render API URL.
+
+### Option B: Docker Compose (Alternative)
 
 ```bash
 cp .env.example .env        # set production secrets
