@@ -103,20 +103,26 @@ See [`.env.example`](.env.example) for all required variables.
 
 ## Modules
 
+Status legend: ✅ implemented and active, 🟡 available with ongoing enhancements
+
 | Module | Description | Status |
 |--------|-------------|--------|
-| Auth | JWT, OAuth, MFA, RBAC | ✅ |
-| Solar Quotation | AI sizing, ROI calculator, proposals | 🚧 |
-| Installer Marketplace | Profiles, bidding, reviews | 🚧 |
-| Maintenance CRM | Tickets, dispatch, work orders | 🚧 |
-| AI Energy Monitoring | Anomaly detection, forecasting | 🚧 |
-| Client Dashboard | Live production, billing, alerts | 🚧 |
-| IoT Platform | MQTT, device registry, telemetry | 🚧 |
-| Billing & Financing | Invoices, installments, Stripe | 🚧 |
-| Smart City Analytics | GIS dashboards, city-wide data | 🚧 |
-| AI Assistant | Conversational energy advisor | 🚧 |
-| Admin Dashboard | Platform KPIs, user management | 🚧 |
-| Notifications | Email, SMS, push, in-app | 🚧 |
+| Auth | Register/login, JWT refresh, MFA setup/verify, Google OAuth entrypoint, profile retrieval | ✅ |
+| Users & Organizations | User and organization management APIs with RBAC-protected access | ✅ |
+| Solar Quotation | Quotation CRUD, solar sizing calculator, ROI/proposal-ready output | ✅ |
+| Solar Systems | Installed system records, lifecycle status, system-level operations | ✅ |
+| Devices & Telemetry | Device registry, live telemetry ingestion/query, realtime dashboard data | ✅ |
+| IoT Platform | MQTT broker integration and IoT messaging endpoints | ✅ |
+| Installer Marketplace | Installer profiles, marketplace leads, bids, booking flow, reviews | ✅ |
+| Maintenance CRM | Ticket/work-order lifecycle, assignment, parts/work logs | ✅ |
+| Billing & Financing | Invoices, subscriptions, installments, financing, Stripe checkout/webhooks | ✅ |
+| Analytics Dashboard | Fleet KPIs, production/revenue analytics, reporting endpoints | ✅ |
+| Smart City Analytics | City/LGU-focused energy and deployment analytics endpoints | ✅ |
+| Notifications | In-app notifications, event feeds, alert surfaces | ✅ |
+| AI Energy Monitoring | Device anomalies, forecasting, efficiency insights | ✅ |
+| AI Assistant | AI chat/report endpoints for energy advisory workflows | 🟡 |
+| Security & Audit | Security controls plus request audit logging across modules | ✅ |
+| Client Portal & Admin UI | Web dashboards for clients, operators, and admins | ✅ |
 
 ---
 
