@@ -1,0 +1,124 @@
+version: '3.9'
+
+services:
+  # ─── Infrastructure ───────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: solartech-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-solartech}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-solartech_dev}
+      MONGO_INITDB_DATABASE: solartech
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - solartech
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: solartech-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-solartech_dev}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - solartech
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: solartech-mqtt
+    restart: unless-stopped
+    volumes:
+      - ./infra/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mqtt_data:/mosquitto/data
+      - mqtt_logs:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    networks:
+      - solartech
+
+  # ─── Application ──────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: ./infra/docker/Dockerfile.api
+    container_name: solartech-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      MONGODB_URI: mongodb://${MONGO_USER:-solartech}:${MONGO_PASSWORD:-solartech_dev}@mongodb:27017/solartech?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD:-solartech_dev}@redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      MQTT_BROKER_URL: mqtt://mosquitto:1883
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      - mongodb
+      - redis
+      - mosquitto
+    ports:
+      - "4000:4000"
+    networks:
+      - solartech
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/api/v1/auth/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: ./infra/docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:4000}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    container_name: solartech-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_URL: http://api:4000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    networks:
+      - solartech
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: solartech-nginx
+    restart: unless-stopped
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web
+      - api
+    networks:
+      - solartech
+
+volumes:
+  mongo_data:
+  redis_data:
+  mqtt_data:
+  mqtt_logs:
+
+networks:
+  solartech:
+    driver: bridge

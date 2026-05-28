@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: solartech-web
+  namespace: solartech
+  labels:
+    app: solartech-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: solartech-web
+  template:
+    metadata:
+      labels:
+        app: solartech-web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/OWNER/solartech-web:IMAGE_TAG
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: solartech-web-config
+                  key: NEXT_PUBLIC_API_URL
+            - name: NEXT_PUBLIC_WS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: solartech-web-config
+                  key: NEXT_PUBLIC_WS_URL
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: solartech-web
+  namespace: solartech
+spec:
+  selector:
+    app: solartech-web
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: solartech-web-hpa
+  namespace: solartech
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: solartech-web
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

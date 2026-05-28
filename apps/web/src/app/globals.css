@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background:         0 0% 100%;
+    --foreground:         222.2 84% 4.9%;
+    --card:               0 0% 100%;
+    --card-foreground:    222.2 84% 4.9%;
+    --popover:            0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary:            142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary:          217.2 91.2% 59.8%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted:              210 40% 96.1%;
+    --muted-foreground:   215.4 16.3% 46.9%;
+    --accent:             210 40% 96.1%;
+    --accent-foreground:  222.2 47.4% 11.2%;
+    --destructive:        0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border:             214.3 31.8% 91.4%;
+    --input:              214.3 31.8% 91.4%;
+    --ring:               142.1 76.2% 36.3%;
+    --radius:             0.75rem;
+    --chart-1: 142 76% 36%;
+    --chart-2: 217 91% 60%;
+    --chart-3: 47 100% 50%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.06);
+    --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.08), 0 12px 28px rgba(15, 23, 42, 0.1);
+    --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 14px rgba(15, 23, 42, 0.07);
+  }
+
+  .dark {
+    --background:         222.2 84% 4.9%;
+    --foreground:         210 40% 98%;
+    --card:               222.2 84% 4.9%;
+    --card-foreground:    210 40% 98%;
+    --popover:            222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary:            142.1 70.6% 45.3%;
+    --primary-foreground: 144.9 80.4% 10%;
+    --secondary:          217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted:              217.2 32.6% 17.5%;
+    --muted-foreground:   215 20.2% 65.1%;
+    --accent:             217.2 32.6% 17.5%;
+    --accent-foreground:  210 40% 98%;
+    --destructive:        0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border:             217.2 32.6% 17.5%;
+    --input:              217.2 32.6% 17.5%;
+    --ring:               142.4 71.8% 29.2%;
+    --chart-1: 142 70% 45%;
+    --chart-2: 217 91% 65%;
+    --chart-3: 47 100% 55%;
+    --chart-4: 280 65% 65%;
+    --chart-5: 340 75% 60%;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+    --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.32);
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground antialiased; }
+}
+
+@layer components {
+  /* Dashboard-style solid panels (charts, tables, sections) */
+  .glass-card-solid {
+    @apply bg-card text-card-foreground border border-border/70 rounded-xl shadow-panel;
+  }
+  /* KPI / metric tiles — matches Energy Dashboard stat row */
+  .stat-card {
+    @apply glass-card-solid p-5 flex flex-col gap-2 transition-[box-shadow,transform] duration-200 ease-out shadow-card hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+  /* Large section wrapper (same shadow as dashboard chart cards) */
+  .panel-card {
+    @apply glass-card-solid rounded-2xl;
+  }
+  /* Clickable list/grid cards */
+  .interactive-card {
+    @apply glass-card-solid transition-[box-shadow,transform] duration-200 ease-out shadow-card hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+  /* Frosted glass — auth & marketing only */
+  .glass-card {
+    @apply backdrop-blur-md bg-white/10 dark:bg-white/5 border border-white/20 dark:border-white/10 rounded-xl shadow-panel;
+  }
+  .glow-green { @apply shadow-glow; }
+  .glow-blue  { @apply shadow-glow-blue; }
+  .gradient-text {
+    @apply bg-gradient-solar bg-clip-text text-transparent;
+  }
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors;
+    @apply text-muted-foreground hover:text-foreground hover:bg-accent;
+  }
+  .sidebar-item-active {
+    @apply sidebar-item text-foreground bg-primary/10 text-primary hover:bg-primary/15;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/50; }

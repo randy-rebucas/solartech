@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/solartech
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint --workspace=apps/api --workspace=apps/web
+      - run: npx tsc --noEmit --project apps/api/tsconfig.json
+      - run: npx tsc --noEmit --project apps/web/tsconfig.json
+
+  test-api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports: ['27017:27017']
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    env:
+      MONGODB_URI: mongodb://localhost:27017/solartech_test
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test-secret-key
+      JWT_REFRESH_SECRET: test-refresh-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run test --workspace=apps/api -- --passWithNoTests
+      - run: npm run test:e2e --workspace=apps/api -- --passWithNoTests
+
+  build-api:
+    name: Build API Image
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test-api]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/Dockerfile.api
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:${{ github.sha }}
+
+  build-web:
+    name: Build Web Image
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/Dockerfile.web
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_WS_URL=${{ vars.NEXT_PUBLIC_WS_URL }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-web:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-web:${{ github.sha }}
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-api, build-web]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v3
+      - name: Set kube context
+        run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > /tmp/kubeconfig
+      - name: Deploy
+        env:
+          KUBECONFIG: /tmp/kubeconfig
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" infra/k8s/*.yaml
+          kubectl apply -f infra/k8s/
+          kubectl rollout status deployment/solartech-api -n solartech
+          kubectl rollout status deployment/solartech-web -n solartech

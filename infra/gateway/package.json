@@ -1,0 +1,13 @@
+{
+  "name": "@solartech/gateway-reference",
+  "private": true,
+  "description": "Reference MQTT publisher for Raspberry Pi / edge gateways",
+  "type": "module",
+  "scripts": {
+    "publish-once": "node publish-telemetry.mjs",
+    "publish-loop": "node publish-telemetry.mjs --loop"
+  },
+  "dependencies": {
+    "mqtt": "^5.10.3"
+  }
+}
