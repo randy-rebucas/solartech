@@ -6,6 +6,7 @@
     "dev":        "npm run build -w @solartech/shared && nest start --watch",
     "build":      "npm run build -w @solartech/shared && nest build",
     "start":      "node dist/main.js",
+    "start:prod": "node dist/main.js",
     "lint":       "eslint src --ext .ts",
     "test":       "jest",
     "test:e2e":   "jest --config ./test/jest-e2e.json",
