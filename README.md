@@ -150,6 +150,50 @@ docker compose up -d --build
 See [`.env.example`](.env.example) for all required variables.
 **Critical:** Set strong random values for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`.
 
+### OAuth Setup Guide (Google + GitHub)
+
+Use these `.env` keys:
+
+```bash
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=http://localhost:4000/api/v1/auth/oauth/google/callback
+
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_CALLBACK_URL=http://localhost:4000/api/v1/auth/oauth/github/callback
+```
+
+1. Create OAuth apps in provider consoles:
+   - Google Cloud Console -> APIs & Services -> Credentials -> OAuth 2.0 Client ID
+   - GitHub -> Developer settings -> OAuth Apps -> New OAuth App
+2. Configure callback URLs exactly (scheme/domain/path must match):
+   - Local Google callback: `http://localhost:4000/api/v1/auth/oauth/google/callback`
+   - Local GitHub **Authorization callback URL**: `http://localhost:4000/api/v1/auth/oauth/github/callback`
+   - Google **Authorized JavaScript origins**: `http://localhost:3000` (and your Vercel domain in prod)
+   - GitHub **Homepage URL**: `http://localhost:3000` (frontend; not the API callback path)
+3. Login flow endpoints (API):
+   - Start Google: `GET /api/v1/auth/oauth/google`
+   - Start GitHub: `GET /api/v1/auth/oauth/github`
+   - After provider login, API redirects to frontend `/oauth/callback` with session payload
+4. Copy client ID/secret into your local `.env`.
+5. Restart the API after env changes (`npm run dev` from repo root).
+
+For production (Render API), set provider callbacks to your real API domain:
+
+- `https://<your-render-service>/api/v1/auth/oauth/google/callback`
+- `https://<your-render-service>/api/v1/auth/oauth/github/callback`
+
+Then set matching production values in Render environment variables:
+
+- `GOOGLE_CALLBACK_URL=https://<your-render-service>/api/v1/auth/oauth/google/callback`
+- `GITHUB_CALLBACK_URL=https://<your-render-service>/api/v1/auth/oauth/github/callback`
+
+Common issues:
+- `redirect_uri_mismatch`: callback URL in provider does not exactly match `.env` value.
+- OAuth works locally but fails in prod: provider app still points to localhost callback.
+- 401/invalid_client: wrong client secret or copied with extra spaces.
+
 ---
 
 ## Modules

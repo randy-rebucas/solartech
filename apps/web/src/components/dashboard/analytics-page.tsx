@@ -97,6 +97,79 @@ export function AnalyticsPage() {
   const anomalyRows = ai?.anomalies ?? [];
   const recommendations = ai?.smartRecommendations ?? [];
 
+  const exportRows = useMemo(() => {
+    const rows: string[][] = [];
+    rows.push(['SolarTech Analytics Export']);
+    rows.push(['Generated At', new Date().toISOString()]);
+    rows.push(['Range', range]);
+    rows.push([]);
+
+    rows.push(['KPI', 'Value']);
+    rows.push(['Energy Generated (kWh)', report?.totalKwh != null ? String(report.totalKwh) : '']);
+    rows.push(['CO2 Avoided (kg)', carbon?.co2SavedKg != null ? String(carbon.co2SavedKg) : '']);
+    rows.push(['Peak Power (kW)', report?.peakKw != null ? String(report.peakKw) : '']);
+    rows.push(['Performance Ratio (%)', report?.performanceRatio != null ? String(report.performanceRatio) : '']);
+    rows.push([]);
+
+    rows.push(['Daily Energy Production']);
+    rows.push(['Date', 'Produced (kWh)']);
+    for (const row of dailyEnergy) {
+      rows.push([row.date, String(row.produced)]);
+    }
+    rows.push([]);
+
+    rows.push(['Hourly Power Profile']);
+    rows.push(['Hour', 'Power (kW)', 'Forecast (kW)']);
+    for (const row of hourlyData) {
+      rows.push([row.hour, String(row.power), String(row.forecast)]);
+    }
+    rows.push([]);
+
+    rows.push(['Monthly Carbon Impact']);
+    rows.push(['Month', 'CO2 Avoided (kg)']);
+    for (const row of monthlyCarbon) {
+      rows.push([row.month, String(row.avoided)]);
+    }
+    rows.push([]);
+
+    rows.push(['AI Anomalies']);
+    rows.push(['Type', 'Severity', 'Message']);
+    for (const row of anomalyRows) {
+      rows.push([row.type, row.severity, row.message]);
+    }
+    rows.push([]);
+
+    rows.push(['Smart Recommendations']);
+    rows.push(['Recommendation']);
+    for (const rec of recommendations) {
+      rows.push([rec]);
+    }
+
+    return rows;
+  }, [anomalyRows, carbon?.co2SavedKg, dailyEnergy, hourlyData, monthlyCarbon, range, recommendations, report?.peakKw, report?.performanceRatio, report?.totalKwh]);
+
+  function escapeCsvCell(value: string) {
+    if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  }
+
+  function handleExportCsv() {
+    const csv = exportRows
+      .map((line) => line.map((cell) => escapeCsvCell(cell)).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `analytics-${range}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <PageContainer>
       <div className="flex items-center justify-between">
@@ -115,7 +188,10 @@ export function AnalyticsPage() {
               </button>
             ))}
           </div>
-          <button className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-accent">
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-accent"
+          >
             <Download className="w-4 h-4" /> Export
           </button>
         </div>
