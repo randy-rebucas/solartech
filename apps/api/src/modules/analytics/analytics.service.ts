@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Telemetry, TelemetryDocument } from '../../database/schemas/telemetry.schema';
@@ -11,7 +11,14 @@ import { Notification, NotificationDocument } from '../../database/schemas/notif
 import { Device, DeviceDocument } from '../../database/schemas/device.schema';
 import { MarketplaceLead, MarketplaceLeadDocument } from '../../database/schemas/marketplace-lead.schema';
 import { MarketplaceBooking, MarketplaceBookingDocument } from '../../database/schemas/marketplace-booking.schema';
+import { SiteAnalyticsDaily, SiteAnalyticsDailyDocument } from '../../database/schemas/site-analytics.schema';
+import { SiteAnalyticsLocation, SiteAnalyticsLocationDocument } from '../../database/schemas/site-analytics-location.schema';
 import { rangeToDates } from './analytics-range';
+import { resolveVisitLocation, formatLocationLabel, type ClientLocationMeta } from './resolve-visit-location';
+import type { Request } from 'express';
+
+type SiteEventType = 'visit' | 'pageview' | 'click';
+const ANALYTICS_TZ = 'Asia/Manila';
 
 @Injectable()
 export class AnalyticsService {
@@ -26,7 +33,176 @@ export class AnalyticsService {
     @InjectModel(Device.name)             private deviceModel: Model<DeviceDocument>,
     @InjectModel(MarketplaceLead.name)    private marketplaceLeadModel: Model<MarketplaceLeadDocument>,
     @InjectModel(MarketplaceBooking.name) private marketplaceBookingModel: Model<MarketplaceBookingDocument>,
+    @InjectModel(SiteAnalyticsDaily.name) private siteAnalyticsModel: Model<SiteAnalyticsDailyDocument>,
+    @InjectModel(SiteAnalyticsLocation.name) private siteLocationModel: Model<SiteAnalyticsLocationDocument>,
   ) {}
+
+  private dateKey(date = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: ANALYTICS_TZ }).format(date);
+  }
+
+  private todayDateKey() {
+    return this.dateKey();
+  }
+
+  private lastNDaysKeys(days: number) {
+    const keys: string[] = [];
+    const anchor = new Date();
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const d = new Date(anchor);
+      d.setDate(d.getDate() - i);
+      keys.push(this.dateKey(d));
+    }
+    return keys;
+  }
+
+  async trackSiteEvent(type: SiteEventType, req?: Request, meta?: ClientLocationMeta) {
+    if (!['visit', 'pageview', 'click'].includes(type)) {
+      throw new BadRequestException('Invalid event type');
+    }
+    const field = type === 'visit' ? 'visits' : type === 'pageview' ? 'pageViews' : 'clicks';
+    await this.siteAnalyticsModel.findOneAndUpdate(
+      { date: this.todayDateKey() },
+      { $inc: { [field]: 1 } },
+      { upsert: true },
+    );
+
+    if (type === 'visit' && req) {
+      const location = resolveVisitLocation(req, meta);
+      await this.siteLocationModel.findOneAndUpdate(
+        { country: location.country, region: location.region, city: location.city },
+        { $inc: { visits: 1 } },
+        { upsert: true },
+      );
+    }
+
+    return { ok: true };
+  }
+
+  async getPublicPlatformStats() {
+    const dayKeys = this.lastNDaysKeys(7);
+    const fromDate = dayKeys[0];
+    const rangeStart = new Date(`${fromDate}T00:00:00+08:00`);
+
+    const dailySignupGroup = {
+      $group: {
+        _id: {
+          $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: ANALYTICS_TZ },
+        },
+        count: { $sum: 1 },
+      },
+    };
+
+    const [
+      totalUsers,
+      totalOrgs,
+      activeSystems,
+      dailyMetrics,
+      allTimeTotals,
+      userSignups,
+      orgSignups,
+      systemActivations,
+      usersBeforeRange,
+      orgsBeforeRange,
+      systemsBeforeRange,
+      topLocations,
+      totalLocations,
+    ] = await Promise.all([
+      this.userModel.countDocuments(),
+      this.orgModel.countDocuments(),
+      this.systemModel.countDocuments({ status: 'active' }),
+      this.siteAnalyticsModel.find({ date: { $gte: fromDate } }).sort({ date: 1 }).lean(),
+      this.siteAnalyticsModel.aggregate([
+        {
+          $group: {
+            _id: null,
+            visits: { $sum: '$visits' },
+            pageViews: { $sum: '$pageViews' },
+            clicks: { $sum: '$clicks' },
+          },
+        },
+      ]),
+      this.userModel.aggregate([
+        { $match: { createdAt: { $gte: rangeStart } } },
+        dailySignupGroup,
+      ]),
+      this.orgModel.aggregate([
+        { $match: { createdAt: { $gte: rangeStart } } },
+        dailySignupGroup,
+      ]),
+      this.systemModel.aggregate([
+        { $match: { status: 'active', createdAt: { $gte: rangeStart } } },
+        dailySignupGroup,
+      ]),
+      this.userModel.countDocuments({ createdAt: { $lt: rangeStart } }),
+      this.orgModel.countDocuments({ createdAt: { $lt: rangeStart } }),
+      this.systemModel.countDocuments({ status: 'active', createdAt: { $lt: rangeStart } }),
+      this.siteLocationModel.find().sort({ visits: -1 }).limit(8).lean(),
+      this.siteLocationModel.countDocuments(),
+    ]);
+
+    const metricsByDate = new Map(
+      dailyMetrics.map((row) => [row.date, row]),
+    );
+    const toCountMap = (rows: Array<{ _id: string; count: number }>) =>
+      new Map(rows.map((row) => [row._id, row.count]));
+    const userSignupsByDate = toCountMap(userSignups);
+    const orgSignupsByDate = toCountMap(orgSignups);
+    const systemActivationsByDate = toCountMap(systemActivations);
+
+    let runningUsers = usersBeforeRange;
+    let runningOrgs = orgsBeforeRange;
+    let runningSystems = systemsBeforeRange;
+
+    const trends = dayKeys.map((date) => {
+      const row = metricsByDate.get(date);
+      runningUsers += userSignupsByDate.get(date) ?? 0;
+      runningOrgs += orgSignupsByDate.get(date) ?? 0;
+      runningSystems += systemActivationsByDate.get(date) ?? 0;
+
+      return {
+        date,
+        label: new Date(`${date}T12:00:00+08:00`).toLocaleDateString('en-US', {
+          weekday: 'short',
+          timeZone: ANALYTICS_TZ,
+        }),
+        visits: row?.visits ?? 0,
+        pageViews: row?.pageViews ?? 0,
+        clicks: row?.clicks ?? 0,
+        users: runningUsers,
+        organizations: runningOrgs,
+        activeSystems: runningSystems,
+      };
+    });
+
+    const today = metricsByDate.get(this.todayDateKey());
+    const totals = allTimeTotals[0] ?? { visits: 0, pageViews: 0, clicks: 0 };
+
+    const locations = topLocations.map((row) => ({
+      country: row.country,
+      region: row.region,
+      city: row.city,
+      label: formatLocationLabel(row.country, row.region, row.city),
+      visits: row.visits,
+    }));
+
+    return {
+      totalUsers,
+      totalOrganizations: totalOrgs,
+      activeSystems,
+      totalVisits: totals.visits ?? 0,
+      totalPageViews: totals.pageViews ?? 0,
+      totalClicks: totals.clicks ?? 0,
+      totalLocations,
+      today: {
+        visits: today?.visits ?? 0,
+        pageViews: today?.pageViews ?? 0,
+        clicks: today?.clicks ?? 0,
+      },
+      trends,
+      topLocations: locations,
+    };
+  }
 
   private orgTelemetryMatch(organizationId: string, from: Date, to: Date) {
     return [

@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Sun } from 'lucide-react';
+import { FloatingStatsWidget } from '@/components/analytics/floating-stats-widget';
+import { SiteAnalyticsTracker } from '@/components/analytics/site-analytics-tracker';
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
+      <SiteAnalyticsTracker />
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
@@ -83,6 +86,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           © 2024 SolarTech Philippines. All rights reserved.
         </div>
       </footer>
+      <FloatingStatsWidget />
     </div>
   );
 }

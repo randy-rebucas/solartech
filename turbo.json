@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalEnv": ["NODE_ENV", "PORT", "API_URL", "NEXT_PUBLIC_API_URL", "MONGODB_URI", "MQTT_ENABLED"],
+  "globalEnv": ["NODE_ENV", "PORT", "API_URL", "NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_GA_MEASUREMENT_ID", "MONGODB_URI", "MQTT_ENABLED"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

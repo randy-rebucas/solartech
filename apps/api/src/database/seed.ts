@@ -73,6 +73,8 @@ const COLLECTIONS = [
   'marketplace_bids',
   'marketplace_bookings',
   'marketplace_messages',
+  'site_analytics_daily',
+  'site_analytics_locations',
 ];
 
 function daysAgo(n: number) {

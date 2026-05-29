@@ -13,6 +13,8 @@ import { Notification, NotificationSchema }        from '../../database/schemas/
 import { Device, DeviceSchema }                    from '../../database/schemas/device.schema';
 import { MarketplaceLead, MarketplaceLeadSchema }  from '../../database/schemas/marketplace-lead.schema';
 import { MarketplaceBooking, MarketplaceBookingSchema } from '../../database/schemas/marketplace-booking.schema';
+import { SiteAnalyticsDaily, SiteAnalyticsDailySchema } from '../../database/schemas/site-analytics.schema';
+import { SiteAnalyticsLocation, SiteAnalyticsLocationSchema } from '../../database/schemas/site-analytics-location.schema';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { MarketplaceBooking, MarketplaceBookingSchema } from '../../database/sch
       { name: Device.name,             schema: DeviceSchema },
       { name: MarketplaceLead.name,    schema: MarketplaceLeadSchema },
       { name: MarketplaceBooking.name, schema: MarketplaceBookingSchema },
+      { name: SiteAnalyticsDaily.name, schema: SiteAnalyticsDailySchema },
+      { name: SiteAnalyticsLocation.name, schema: SiteAnalyticsLocationSchema },
     ]),
   ],
   controllers: [AnalyticsController],

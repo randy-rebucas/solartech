@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { publicApi } from '@/lib/public-api';
 
 // ─── Generic hooks ────────────────────────────────────────────────────────────
 export function useGet<T>(key: unknown[], url: string, options?: object) {
@@ -360,6 +361,38 @@ export type AdminAnalytics = {
   };
 };
 
+export type PublicPlatformStats = {
+  totalUsers: number;
+  totalOrganizations: number;
+  activeSystems: number;
+  totalVisits: number;
+  totalPageViews: number;
+  totalClicks: number;
+  totalLocations: number;
+  today: {
+    visits: number;
+    pageViews: number;
+    clicks: number;
+  };
+  trends: Array<{
+    date: string;
+    label: string;
+    visits: number;
+    pageViews: number;
+    clicks: number;
+    users: number;
+    organizations: number;
+    activeSystems: number;
+  }>;
+  topLocations: Array<{
+    country: string;
+    region: string;
+    city: string;
+    label: string;
+    visits: number;
+  }>;
+};
+
 export type TelemetryLatest = {
   metrics?: {
     powerOutputW?: number;
@@ -604,6 +637,16 @@ export function useAdminAnalytics() {
     '/api/v1/analytics/admin',
     { refetchInterval: 10_000 },
   );
+}
+
+export function usePublicPlatformStats(open = false) {
+  return useQuery<PublicPlatformStats>({
+    queryKey: ['analytics', 'public-stats'],
+    queryFn: () => publicApi.get<PublicPlatformStats>('/api/v1/analytics/public-stats').then((r) => r.data),
+    refetchInterval: open ? 10_000 : 30_000,
+    staleTime: 5_000,
+    retry: 2,
+  });
 }
 
 export function useSmartCitySummary() {

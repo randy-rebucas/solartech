@@ -1,9 +1,12 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { AnalyticsService } from './analytics.service';
+import { TrackSiteEventDto } from './dto/track-site-event.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { rangeToDates, rangeToDays } from './analytics-range';
 import type { JwtPayload } from '@solartech/shared';
@@ -78,5 +81,20 @@ export class AnalyticsController {
     @Query('days') days?: number,
   ) {
     return this.service.getAiEnergyMonitoring(user.organizationId ?? user.sub, days ?? 30);
+  }
+
+  @Public()
+  @Get('public-stats')
+  @ApiOperation({ summary: 'Public platform engagement stats for marketing widget' })
+  getPublicStats() {
+    return this.service.getPublicPlatformStats();
+  }
+
+  @Public()
+  @Post('track')
+  @ApiOperation({ summary: 'Record a site visit, page view, or click' })
+  trackSiteEvent(@Body() body: TrackSiteEventDto, @Req() req: Request) {
+    const { type, timezone, locale } = body;
+    return this.service.trackSiteEvent(type, req, { timezone, locale });
   }
 }
